@@ -193,10 +193,15 @@ chmod 640 "$INSTALL_DIR/api/config.php"
 # --------------------------------------------------
 log "Configuration d'Apache..."
 
+# Désactiver le site par défaut en premier
+a2dissite 000-default.conf 2>/dev/null || a2dissite 000-default 2>/dev/null || true
+
 cat > /etc/apache2/sites-available/cnctolequotation.conf <<'APACHEEOF'
 <VirtualHost *:80>
-    ServerName cnctole.local
     ServerAdmin admin@localhost
+    # Accepte aussi bien l'accès par IP que par nom
+    ServerName cnctolequotation
+    ServerAlias *
 
     DocumentRoot /opt/cnctolequotation/web
 
@@ -204,18 +209,19 @@ cat > /etc/apache2/sites-available/cnctolequotation.conf <<'APACHEEOF'
         Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
+        DirectoryIndex index.php index.html
     </Directory>
 
     # API
     Alias /api /opt/cnctolequotation/api
     <Directory /opt/cnctolequotation/api>
-        Options -Indexes
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
 
-    # Sécurité
-    <DirectoryMatch "/opt/cnctolequotation/(core|data|sql|scripts|cli|logs|tmp|venv)">
+    # Sécurité : interdire l'accès direct aux dossiers sensibles
+    <DirectoryMatch "^/opt/cnctolequotation/(core|data|sql|scripts|cli|logs|tmp|venv)">
         Require all denied
     </DirectoryMatch>
 
@@ -223,16 +229,28 @@ cat > /etc/apache2/sites-available/cnctolequotation.conf <<'APACHEEOF'
     CustomLog ${APACHE_LOG_DIR}/cnctole_access.log combined
 
     # PHP
-    php_value upload_max_filesize 55M
-    php_value post_max_size 60M
-    php_value max_execution_time 180
-    php_value memory_limit 512M
+    <IfModule mod_php.c>
+        php_value upload_max_filesize 55M
+        php_value post_max_size 60M
+        php_value max_execution_time 180
+        php_value memory_limit 512M
+    </IfModule>
 </VirtualHost>
 APACHEEOF
 
-a2dissite 000-default > /dev/null || true
-a2ensite cnctolequotation > /dev/null
-systemctl reload apache2
+# S'assurer que le module rewrite est activé
+a2enmod rewrite headers 2>/dev/null || true
+
+a2ensite cnctolequotation.conf 2>/dev/null || a2ensite cnctolequotation 2>/dev/null || true
+
+# Vérification de la configuration avant rechargement
+if apache2ctl configtest 2>&1 | grep -q "Syntax OK"; then
+    systemctl reload apache2
+    log "Apache rechargé avec succès."
+else
+    warn "Problème de configuration Apache. Vérifiez avec : apache2ctl configtest"
+    systemctl reload apache2 || true
+fi
 
 # --------------------------------------------------
 # 7. Modèle ML initial (basique)
