@@ -1,0 +1,14 @@
+RewriteEngine On
+
+# Force HTTPS si disponible (décommenter en production)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Router simple
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^v1/quote$ v1/quote.php [L,QSA]
+
+# Bloquer l'accès direct aux fichiers sensibles
+<FilesMatch "\.(sql|sh|py|joblib|pkl|log)$">
+    Require all denied
+</FilesMatch>

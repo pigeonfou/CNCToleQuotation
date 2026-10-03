@@ -1,0 +1,31 @@
+# Environnement
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Données runtime
+data/uploads/*
+!data/uploads/.gitkeep
+data/history/*
+!data/history/.gitkeep
+tmp/*
+!tmp/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Config sensible
+api/config.php
+
+# Modèles (optionnel – on peut versionner les petits modèles)
+# data/models/*.joblib
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
