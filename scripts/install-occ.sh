@@ -46,12 +46,21 @@ fi
 
 export PATH="${MINICONDA_DIR}/bin:$PATH"
 
+# Accepter les ToS Anaconda (requis en mode non interactif)
+log "Acceptation des Conditions d'utilisation conda..."
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main 2>/dev/null || true
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r 2>/dev/null || true
+
+# Préférer conda-forge
+conda config --system --add channels conda-forge 2>/dev/null || true
+conda config --system --set channel_priority strict 2>/dev/null || true
+
 # --------------------------------------------------
 # 2. Environnement pyocc + pythonocc-core
 # --------------------------------------------------
 if [[ ! -x "$PYTHON_OCC" ]]; then
     log "Création de l'environnement conda '${ENV_NAME}' (python 3.12)..."
-    conda create -y -n "$ENV_NAME" python=3.12
+    conda create -y -n "$ENV_NAME" -c conda-forge python=3.12
 fi
 
 log "Installation de pythonocc-core (conda-forge)..."
