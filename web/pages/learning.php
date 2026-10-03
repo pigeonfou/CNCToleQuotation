@@ -26,11 +26,19 @@
             <?php
             $modelsDir = '/opt/cnctolequotation/data/models';
             $activeFile = $modelsDir . '/active_model.txt';
-            $active = file_exists($activeFile) ? trim(file_get_contents($activeFile)) : '(aucun)';
+
+            if (!is_dir($modelsDir) || !is_readable($modelsDir)) {
+                echo '<p class="error">Le répertoire des modèles n’est pas accessible par Apache (www-data).</p>';
+                echo '<p class="muted">Corrigez avec :<br>
+                <code>sudo usermod -aG cnctole www-data && sudo chmod -R 750 /opt/cnctolequotation/data/models && sudo systemctl restart apache2</code></p>';
+            } else {
+            $active = (file_exists($activeFile) && is_readable($activeFile))
+                ? trim(file_get_contents($activeFile))
+                : '(aucun)';
 
             echo '<p>Modèle <strong>actif</strong> : <code>' . htmlspecialchars($active) . '</code></p>';
 
-            $files = glob($modelsDir . '/model_*.json');
+            $files = glob($modelsDir . '/model_*.json') ?: [];
             if (empty($files)) {
                 echo '<p class="muted">Aucun modèle trouvé. Lancez d’abord create_initial_model.py.</p>';
             } else {
@@ -52,6 +60,7 @@
                 }
                 echo '</tbody></table>';
             }
+            } // fin is_readable
             ?>
         </section>
 

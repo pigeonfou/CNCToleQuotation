@@ -281,12 +281,21 @@ fi
 # --------------------------------------------------
 # 8. Permissions finales
 # --------------------------------------------------
+# Apache (www-data) doit pouvoir lire les modèles et la config pour l'interface admin
+usermod -aG "$APP_GROUP" www-data 2>/dev/null || true
+
 chown -R "$APP_USER:$APP_GROUP" "$INSTALL_DIR"
 chmod -R 755 "$INSTALL_DIR"
-chmod -R 770 "$INSTALL_DIR/data" "$INSTALL_DIR/logs" "$INSTALL_DIR/tmp"
+
+# data/uploads, logs, tmp : écriture réservée à cnctole
+chmod -R 770 "$INSTALL_DIR/data/uploads" "$INSTALL_DIR/logs" "$INSTALL_DIR/tmp"
+
+# data/models : lecture pour le groupe (www-data y est ajouté)
+chmod -R 750 "$INSTALL_DIR/data/models" 2>/dev/null || true
+chmod -R 750 "$INSTALL_DIR/data/history" 2>/dev/null || true
+
+# config.php : lecture pour le groupe (Apache doit le lire)
 chmod 640 "$INSTALL_DIR/api/config.php"
-# S'assurer que les modèles restent accessibles
-chmod -R 770 "$INSTALL_DIR/data/models" 2>/dev/null || true
 
 # --------------------------------------------------
 # Fin
