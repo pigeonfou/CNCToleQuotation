@@ -27,41 +27,38 @@ Moteur de cotation automatique **100 % offline** pour pièces CNC (fraisage / to
 
 ## Déploiement complet (Ubuntu Server 24.04 frais)
 
-Cette procédure part d’un **Ubuntu Server 24.04 LTS x64** fraîchement installé (sans interface graphique).
+Cette procédure part d’un **Ubuntu Server 24.04 LTS x64** fraîchement installé (sans interface graphique).  
+Utilisez un compte avec les droits `sudo`. N’utilisez `sudo` que lorsque c’est nécessaire.
 
 ### 1. Prérequis système
-
-Connectez-vous en root ou avec un compte sudo :
-
-```bash
-sudo -i
-```
 
 Mettez à jour le système :
 
 ```bash
-apt update && apt upgrade -y
+sudo apt update && sudo apt upgrade -y
 ```
 
 Installez les outils de base :
 
 ```bash
-apt install -y git curl wget unzip ca-certificates
+sudo apt install -y git curl wget unzip ca-certificates
 ```
 
 ### 2. Récupération du projet
 
 ```bash
-cd /opt
+cd /tmp
 git clone https://github.com/pigeonfou/CNCToleQuotation.git
 cd CNCToleQuotation
 ```
 
 ### 3. Lancement de l’installation automatique
 
+Le script d’installation doit être exécuté avec les droits root :
+
 ```bash
 chmod +x scripts/install.sh
-./scripts/install.sh
+sudo ./scripts/install.sh
 ```
 
 Le script effectue automatiquement :
@@ -73,6 +70,7 @@ Le script effectue automatiquement :
 5. Configuration d’Apache (VirtualHost)
 6. Génération d’un modèle ML initial de démonstration
 7. Mise en place des permissions
+8. Installation du projet dans `/opt/cnctolequotation`
 
 **Durée estimée** : 5 à 15 minutes selon la connexion internet (les paquets sont téléchargés uniquement pendant l’installation).
 
@@ -108,7 +106,7 @@ Exemple : `http://192.168.1.50/`
 #### 6.1 Changer le mot de passe MariaDB
 
 ```bash
-mysql -u root
+sudo mysql
 ```
 
 ```sql
@@ -120,14 +118,12 @@ EXIT;
 Puis éditez le fichier de configuration :
 
 ```bash
-nano /opt/cnctolequotation/api/config.php
+sudo nano /opt/cnctolequotation/api/config.php
 ```
 
 Modifiez la ligne `'password' => '...'`.
 
 #### 6.2 Révoquer le token de démonstration
-
-Connectez-vous à la base :
 
 ```bash
 mysql -u cnctole -p cnctolequotation
@@ -144,9 +140,9 @@ EXIT;
 #### 6.3 (Recommandé) Firewall
 
 ```bash
-ufw allow OpenSSH
-ufw allow 80/tcp
-ufw enable
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw enable
 ```
 
 ### 7. Utilisation de l’API
@@ -165,16 +161,16 @@ curl -X POST http://<IP>/api/v1/quote \
 1. Exportez les données validées :
 
 ```bash
-/opt/cnctolequotation/cli/export_history.sh > /opt/cnctolequotation/data/history/export.csv
+sudo -u cnctole /opt/cnctolequotation/cli/export_history.sh > /tmp/export.csv
+sudo mv /tmp/export.csv /opt/cnctolequotation/data/history/export.csv
+sudo chown cnctole:cnctole /opt/cnctolequotation/data/history/export.csv
 ```
 
 2. Réentraînez le modèle :
 
 ```bash
 cd /opt/cnctolequotation
-source venv/bin/activate
-python3 core/learning/train.py --csv data/history/export.csv --version v1.0.0
-deactivate
+sudo -u cnctole bash -c 'source venv/bin/activate && python3 core/learning/train.py --csv data/history/export.csv --version v1.0.0'
 ```
 
 Le nouveau modèle devient automatiquement actif.
