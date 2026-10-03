@@ -149,11 +149,12 @@ $geo = json_decode($geoOutput ?? '', true);
 
 if (!$geo || empty($geo['success'])) {
     @unlink($tmpPath);
-    log_msg("Geometry analysis failed for $uuid : " . ($geoOutput ?? 'null'));
+    $raw = is_string($geoOutput) ? trim($geoOutput) : '';
+    log_msg("Geometry analysis failed for $uuid : " . ($raw !== '' ? $raw : 'null'));
     json_response([
         'success' => false,
         'error' => 'Geometry analysis failed',
-        'detail' => $geo['error'] ?? 'Unknown error'
+        'detail' => $geo['error'] ?? ($raw !== '' ? $raw : 'Empty response from analyze.py')
     ], 422);
 }
 
@@ -187,11 +188,12 @@ $pred = json_decode($predOutput ?? '', true);
 
 if (!$pred || empty($pred['success'])) {
     @unlink($tmpPath);
-    log_msg("ML prediction failed for $uuid : " . ($predOutput ?? 'null'));
+    $raw = is_string($predOutput) ? trim($predOutput) : '';
+    log_msg("ML prediction failed for $uuid : " . ($raw !== '' ? $raw : 'null'));
     json_response([
         'success' => false,
         'error' => 'ML prediction failed',
-        'detail' => $pred['error'] ?? 'Unknown error'
+        'detail' => $pred['error'] ?? ($raw !== '' ? $raw : 'Empty response from predict.py (check permissions / python venv)')
     ], 422);
 }
 
