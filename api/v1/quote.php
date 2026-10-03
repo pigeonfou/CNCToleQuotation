@@ -38,7 +38,21 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // --------------------------------------------------
 // Authentification Bearer
 // --------------------------------------------------
-$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+// Apache ne transmet pas toujours Authorization → plusieurs fallbacks
+$authHeader = $_SERVER['HTTP_AUTHORIZATION']
+    ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+    ?? '';
+
+if ($authHeader === '' && function_exists('apache_request_headers')) {
+    $headers = apache_request_headers();
+    foreach ($headers as $key => $value) {
+        if (strtolower($key) === 'authorization') {
+            $authHeader = $value;
+            break;
+        }
+    }
+}
+
 if (!preg_match('/Bearer\s+(\S+)/i', $authHeader, $m)) {
     json_response(['success' => false, 'error' => 'Missing or invalid Authorization header'], 401);
 }

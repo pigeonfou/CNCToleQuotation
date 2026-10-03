@@ -49,6 +49,9 @@ cat > /etc/apache2/sites-available/cnctolequotation.conf <<'EOF'
         Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
+        # Transmettre Authorization à PHP
+        CGIPassAuth On
+        SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
     </Directory>
 
     <DirectoryMatch "^/opt/cnctolequotation/(core|data|sql|scripts|cli|logs|tmp|venv)">

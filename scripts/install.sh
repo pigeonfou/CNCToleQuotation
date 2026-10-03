@@ -218,6 +218,9 @@ cat > /etc/apache2/sites-available/cnctolequotation.conf <<'APACHEEOF'
         Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
+        # Transmettre Authorization à PHP
+        CGIPassAuth On
+        SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
     </Directory>
 
     # Sécurité : interdire l'accès direct aux dossiers sensibles

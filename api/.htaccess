@@ -1,8 +1,8 @@
 RewriteEngine On
 
-# Force HTTPS si disponible (décommenter en production)
-# RewriteCond %{HTTPS} off
-# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# Transmettre l'en-tête Authorization à PHP (Apache le filtre sinon)
+RewriteCond %{HTTP:Authorization} .
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
 # Router simple
 RewriteCond %{REQUEST_FILENAME} !-f
