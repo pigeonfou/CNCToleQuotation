@@ -116,7 +116,7 @@ log "Installation des packages Python (offline-ready)..."
 pip install --upgrade pip wheel setuptools > /dev/null
 
 # Packages Python nécessaires
-# Note : pythonocc-core est complexe à installer purement offline.
+# Note : pythonocc-core s'installe via scripts/install-occ.sh (conda), pas via pip.
 # On installe d'abord les packages purs Python, puis on documente OCC.
 pip install \
     numpy \
@@ -127,10 +127,9 @@ pip install \
     scipy \
     > /dev/null
 
-# Tentative d'installation de pythonocc-core (peut échouer selon la version d'OCC)
-# Si échec, l'analyse géométrique basculera sur un mode dégradé (bounding box + volume approximatif)
-log "Tentative d'installation de pythonocc-core..."
-pip install pythonocc-core 2>/dev/null || warn "pythonocc-core non installé automatiquement. Voir docs/INSTALL.md pour compilation manuelle."
+# pythonocc-core n'est pas sur PyPI : installer après coup avec scripts/install-occ.sh (conda)
+warn "OpenCascade non inclus ici. Pour une analyse STEP réelle, lancez ensuite :"
+warn "  sudo ./scripts/install-occ.sh"
 
 deactivate
 
@@ -169,14 +168,15 @@ return [
         'charset'  => 'utf8mb4',
     ],
     'paths' => [
-        'root'     => '/opt/cnctolequotation',
-        'uploads'  => '/opt/cnctolequotation/data/uploads',
-        'models'   => '/opt/cnctolequotation/data/models',
-        'logs'     => '/opt/cnctolequotation/logs',
-        'tmp'      => '/opt/cnctolequotation/tmp',
-        'python'   => '/opt/cnctolequotation/venv/bin/python3',
-        'geometry' => '/opt/cnctolequotation/core/geometry/analyze.py',
-        'predict'  => '/opt/cnctolequotation/core/ml/predict.py',
+        'root'             => '/opt/cnctolequotation',
+        'uploads'          => '/opt/cnctolequotation/data/uploads',
+        'models'           => '/opt/cnctolequotation/data/models',
+        'logs'             => '/opt/cnctolequotation/logs',
+        'tmp'              => '/opt/cnctolequotation/tmp',
+        'geometry_python'  => '/opt/cnctolequotation/venv/bin/python3',
+        'python'           => '/opt/cnctolequotation/venv/bin/python3',
+        'geometry'         => '/opt/cnctolequotation/core/geometry/analyze.py',
+        'predict'          => '/opt/cnctolequotation/core/ml/predict.py',
     ],
     'security' => [
         'max_upload_mb' => 50,
@@ -318,6 +318,6 @@ log ""
 log " Prochaines étapes :"
 log "  1. Changer le mot de passe MariaDB"
 log "  2. Générer un vrai token API via l'interface admin"
-log "  3. Compiler/installer pythonocc-core si nécessaire"
+log "  3. Installer OpenCascade : sudo ./scripts/install-occ.sh"
 log "  4. Importer votre historique de commandes dans le module Learning"
 log "========================================================"

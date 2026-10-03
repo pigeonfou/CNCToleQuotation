@@ -172,10 +172,11 @@ if (!move_uploaded_file($file['tmp_name'], $tmpPath)) {
 // --------------------------------------------------
 // Analyse géométrique
 // --------------------------------------------------
-$python = $config['paths']['python'];
+$pythonGeo = $config['paths']['geometry_python'] ?? $config['paths']['python'];
+$pythonMl  = $config['paths']['python'];
 $analyzeScript = $config['paths']['geometry'];
 
-$cmd = escapeshellcmd($python) . ' ' . escapeshellarg($analyzeScript) . ' ' . escapeshellarg($tmpPath) . ' 2>&1';
+$cmd = escapeshellcmd($pythonGeo) . ' ' . escapeshellarg($analyzeScript) . ' ' . escapeshellarg($tmpPath) . ' 2>&1';
 $geoOutput = shell_exec($cmd);
 $geo = parse_json_from_output($geoOutput);
 
@@ -213,7 +214,7 @@ $featureFile = $config['paths']['tmp'] . '/' . $uuid . '_features.json';
 file_put_contents($featureFile, json_encode($features));
 
 $predictScript = $config['paths']['predict'];
-$cmdPred = escapeshellcmd($python) . ' ' . escapeshellarg($predictScript) . ' ' . escapeshellarg($featureFile) . ' 2>&1';
+$cmdPred = escapeshellcmd($pythonMl) . ' ' . escapeshellarg($predictScript) . ' ' . escapeshellarg($featureFile) . ' 2>&1';
 $predOutput = shell_exec($cmdPred);
 $pred = parse_json_from_output($predOutput);
 @unlink($featureFile);

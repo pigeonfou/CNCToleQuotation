@@ -177,6 +177,16 @@ Le nouveau modèle devient automatiquement actif.
 
 ---
 
+## OpenCascade (analyse STEP réelle)
+
+Par défaut l’analyse géométrique est en mode *fallback*. Pour activer OpenCascade :
+
+```bash
+sudo ./scripts/install-occ.sh
+```
+
+Détails : [docs/INSTALL-OCC.md](docs/INSTALL-OCC.md)
+
 ## Structure du projet
 
 ```
