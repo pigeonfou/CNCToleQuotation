@@ -255,10 +255,28 @@ fi
 # --------------------------------------------------
 # 7. Modèle ML initial (basique)
 # --------------------------------------------------
+log "Préparation du répertoire des modèles ML..."
+mkdir -p "$INSTALL_DIR/data/models"
+chown -R "$APP_USER:$APP_GROUP" "$INSTALL_DIR/data"
+chmod -R 770 "$INSTALL_DIR/data"
+
 log "Génération d'un modèle ML initial de démonstration..."
-source "$INSTALL_DIR/venv/bin/activate"
-python3 "$INSTALL_DIR/core/ml/create_initial_model.py" || warn "Impossible de créer le modèle initial (fichier manquant pour le moment)."
-deactivate
+# Exécuter en tant que l'utilisateur applicatif pour les bons droits de fichiers
+if sudo -u "$APP_USER" bash -c "
+    source '$INSTALL_DIR/venv/bin/activate'
+    python3 '$INSTALL_DIR/core/ml/create_initial_model.py'
+"; then
+    # Activer explicitement le modèle
+    echo "v0.1.0" > "$INSTALL_DIR/data/models/active_model.txt"
+    chown "$APP_USER:$APP_GROUP" "$INSTALL_DIR/data/models/active_model.txt"
+    chmod 640 "$INSTALL_DIR/data/models/active_model.txt"
+    log "Modèle ML v0.1.0 créé et activé."
+else
+    warn "Échec de la génération du modèle initial."
+    warn "Vous pourrez le créer plus tard avec :"
+    warn "  sudo -u $APP_USER bash -c 'source $INSTALL_DIR/venv/bin/activate && python3 $INSTALL_DIR/core/ml/create_initial_model.py'"
+    warn "  echo v0.1.0 | sudo tee $INSTALL_DIR/data/models/active_model.txt"
+fi
 
 # --------------------------------------------------
 # 8. Permissions finales
@@ -267,6 +285,8 @@ chown -R "$APP_USER:$APP_GROUP" "$INSTALL_DIR"
 chmod -R 755 "$INSTALL_DIR"
 chmod -R 770 "$INSTALL_DIR/data" "$INSTALL_DIR/logs" "$INSTALL_DIR/tmp"
 chmod 640 "$INSTALL_DIR/api/config.php"
+# S'assurer que les modèles restent accessibles
+chmod -R 770 "$INSTALL_DIR/data/models" 2>/dev/null || true
 
 # --------------------------------------------------
 # Fin
@@ -281,10 +301,11 @@ log " API                 : http://<IP-du-serveur>/api/v1/quote"
 log " Utilisateur BDD     : cnctole"
 log " Mot de passe BDD    : cnctole_change_me_2024  (À CHANGER !)"
 log " Token démo API      : demo-token-change-me"
+log " Modèle ML           : v0.1.0 (si génération réussie)"
 log ""
 log " Prochaines étapes :"
 log "  1. Changer le mot de passe MariaDB"
 log "  2. Générer un vrai token API via l'interface admin"
-log "  3. Compiler/installer pythonocc-core si nécessaire (docs/INSTALL.md)"
+log "  3. Compiler/installer pythonocc-core si nécessaire"
 log "  4. Importer votre historique de commandes dans le module Learning"
 log "========================================================"
