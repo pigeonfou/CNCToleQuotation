@@ -9,8 +9,12 @@ import json
 import os
 from pathlib import Path
 
+import warnings
 import joblib
 import numpy as np
+import pandas as pd
+
+warnings.filterwarnings('ignore')
 
 ROOT = Path(__file__).resolve().parents[2]
 MODELS_DIR = ROOT / "data" / "models"
@@ -76,7 +80,7 @@ def predict(features: dict) -> dict:
         "machinability": mach,
     }
 
-    X = np.array([[row[c] for c in feature_cols]])
+    X = pd.DataFrame([[row[c] for c in feature_cols]], columns=feature_cols)
 
     time_pred = float(model_time.predict(X)[0])
     price_pred = float(model_price.predict(X)[0])

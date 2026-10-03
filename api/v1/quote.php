@@ -28,6 +28,38 @@ function log_msg(string $msg): void
     @file_put_contents($config['paths']['logs'] . '/api.log', $line, FILE_APPEND);
 }
 
+function parse_json_from_output(?string $output): ?array
+{
+    if ($output === null || $output === '') {
+        return null;
+    }
+    $decoded = json_decode($output, true);
+    if (is_array($decoded)) {
+        return $decoded;
+    }
+    // Cherche la dernière ligne JSON valide (ignore warnings stdout)
+    $lines = preg_split('/\r?\n/', trim($output));
+    for ($i = count($lines) - 1; $i >= 0; $i--) {
+        $line = trim($lines[$i]);
+        if ($line === '' || $line[0] !== '{') {
+            continue;
+        }
+        $decoded = json_decode($line, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+    // Dernier recours : extraire le premier objet JSON complet
+    if (preg_match('/\{[\s\S]*\}\s*$/', $output, $m)) {
+        $decoded = json_decode($m[0], true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+    return null;
+}
+
+
 // --------------------------------------------------
 // Méthode
 // --------------------------------------------------
@@ -145,7 +177,7 @@ $analyzeScript = $config['paths']['geometry'];
 
 $cmd = escapeshellcmd($python) . ' ' . escapeshellarg($analyzeScript) . ' ' . escapeshellarg($tmpPath) . ' 2>&1';
 $geoOutput = shell_exec($cmd);
-$geo = json_decode($geoOutput ?? '', true);
+$geo = parse_json_from_output($geoOutput);
 
 if (!$geo || empty($geo['success'])) {
     @unlink($tmpPath);
@@ -183,7 +215,7 @@ file_put_contents($featureFile, json_encode($features));
 $predictScript = $config['paths']['predict'];
 $cmdPred = escapeshellcmd($python) . ' ' . escapeshellarg($predictScript) . ' ' . escapeshellarg($featureFile) . ' 2>&1';
 $predOutput = shell_exec($cmdPred);
-$pred = json_decode($predOutput ?? '', true);
+$pred = parse_json_from_output($predOutput);
 @unlink($featureFile);
 
 if (!$pred || empty($pred['success'])) {
