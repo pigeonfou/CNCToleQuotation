@@ -12,7 +12,7 @@ header('X-Content-Type-Options: nosniff');
 // --------------------------------------------------
 // Bootstrap
 // --------------------------------------------------
-$config = require __DIR__ . '/../config.php';
+$config = require (getenv('CNCTOLE_CONFIG') ?: __DIR__ . '/../config.php');
 
 function json_response(array $data, int $code = 200): void
 {
@@ -354,3 +354,4 @@ json_response([
     ],
     'dfm_alerts' => $geo['dfm_alerts'] ?? []
 ]);
+

@@ -184,6 +184,8 @@ def main():
         if HAS_OCC:
             result = analyze_with_occ(filepath)
         else:
+            if os.environ.get('CNCTOLE_ALLOW_FALLBACK', '1') != '1':
+                raise RuntimeError('OpenCascade requis : configurez le moteur géométrique avant une cotation réelle.')
             result = analyze_fallback(filepath)
 
         result["file_hash"] = file_hash(filepath)

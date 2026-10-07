@@ -17,7 +17,7 @@ import pandas as pd
 warnings.filterwarnings('ignore')
 
 ROOT = Path(__file__).resolve().parents[2]
-MODELS_DIR = ROOT / "data" / "models"
+MODELS_DIR = Path(os.environ.get("CNCTOLE_MODELS_DIR", str(ROOT / "data" / "models")))
 
 # Mapping matériau → machinability (doit rester synchronisé avec la BDD)
 MACHINABILITY = {
@@ -122,3 +122,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -7,6 +7,7 @@ Réentraîne le modèle LightGBM à partir de la table learning_history.
 import sys
 import json
 import argparse
+import os
 from pathlib import Path
 from datetime import datetime
 
@@ -18,7 +19,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import joblib
 
 ROOT = Path(__file__).resolve().parents[2]
-MODELS_DIR = ROOT / "data" / "models"
+MODELS_DIR = Path(os.environ.get("CNCTOLE_MODELS_DIR", str(ROOT / "data" / "models")))
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Mapping matériau
@@ -129,3 +130,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
