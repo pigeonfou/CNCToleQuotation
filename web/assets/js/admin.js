@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fd.delete('token');
 
         try {
-            const resp = await fetch('/api/v1/quote', {
+            const resp = await fetch(new URL('../../api/v1/quote', document.querySelector('script[src$="admin.js"]').src), {
                 method: 'POST',
                 headers: {
                     'Authorization': 'Bearer ' + token
@@ -53,3 +53,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
