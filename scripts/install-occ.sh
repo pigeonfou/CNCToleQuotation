@@ -20,6 +20,8 @@ warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 err()  { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
 
 [[ $EUID -eq 0 ]] || err "Exécutez avec sudo."
+apt-get update
+apt-get install -y curl ca-certificates libgl1 libglu1-mesa libxrender1 libxext6
 
 INSTALL_DIR="/opt/cnctolequotation"
 MINICONDA_DIR="/opt/miniconda3"
@@ -86,6 +88,7 @@ if [[ -f "$CONFIG" ]]; then
     log "Mise à jour de api/config.php (python géométrie + ML → conda)..."
     # Remplace le chemin python du venv par celui de conda
     sed -i "s|'python'\s*=>\s*'[^']*'|'python'   => '${PYTHON_OCC}'|" "$CONFIG"
+    sed -i "s|'geometry_python'\s*=>\s*'[^']*'|'geometry_python' => '${PYTHON_OCC}'|" "$CONFIG"
     # Ajoute geometry_python si absent (rétrocompat)
     if ! grep -q "geometry_python" "$CONFIG"; then
         sed -i "s|'python'\s*=>|'geometry_python' => '${PYTHON_OCC}',\n        'python'   =>|" "$CONFIG"
