@@ -176,7 +176,8 @@ $pythonGeo = $config['paths']['geometry_python'] ?? $config['paths']['python'];
 $pythonMl  = $config['paths']['python'];
 $analyzeScript = $config['paths']['geometry'];
 
-$cmd = escapeshellcmd($pythonGeo) . ' ' . escapeshellarg($analyzeScript) . ' ' . escapeshellarg($tmpPath) . ' 2>&1';
+$fallback = getenv('CNCTOLE_ALLOW_FALLBACK') === '1' ? '1' : '0';
+$cmd = 'env CNCTOLE_ALLOW_FALLBACK=' . $fallback . ' ' . escapeshellcmd($pythonGeo) . ' ' . escapeshellarg($analyzeScript) . ' ' . escapeshellarg($tmpPath) . ' 2>&1';
 $geoOutput = shell_exec($cmd);
 $geo = parse_json_from_output($geoOutput);
 
