@@ -25,167 +25,26 @@ Moteur de cotation automatique **100 % offline** pour pièces CNC (fraisage / to
 
 ---
 
-## Déploiement complet (Ubuntu Server 24.04 frais)
+## Déployer seul sur un serveur dédié
 
-Cette procédure part d’un **Ubuntu Server 24.04 LTS x64** fraîchement installé (sans interface graphique).  
-Utilisez un compte avec les droits `sudo`. N’utilisez `sudo` que lorsque c’est nécessaire.
-
-### 1. Prérequis système
-
-Mettez à jour le système :
+Ubuntu 24.04 ou 26.04 x86_64, accès sudo, installation native Apache/PHP/MariaDB. Lire [le guide autonome](docs/INSTALL_UBUNTU.md). Le script refuse de réimporter une installation existante, demande un mot de passe admin, génère le secret DB et laisse le token de démonstration désactivé.
 
 ```bash
-sudo apt update && sudo apt upgrade -y
-```
-
-Installez les outils de base :
-
-```bash
-sudo apt install -y git curl wget unzip ca-certificates
-```
-
-### 2. Récupération du projet
-
-```bash
-cd /tmp
-git clone https://github.com/pigeonfou/CNCToleQuotation.git
+git clone --branch main https://github.com/pigeonfou/CNCToleQuotation.git
 cd CNCToleQuotation
+sudo bash scripts/install.sh
+sudo bash scripts/install-occ.sh
 ```
 
-### 3. Lancement de l’installation automatique
+Pour un dépôt privé, configurer l’accès Git avant de cloner. L’administration demande le compte `admin`. Les cotations nécessitent un token API distinct, créé dans l’administration. Sans OpenCascade, le serveur refuse une cotation plutôt que de générer une géométrie fictive. Le modèle ML initial est une démonstration à calibrer.
 
-Le script d’installation doit être exécuté avec les droits root :
+## Installer via OneForAll
 
-```bash
-chmod +x scripts/install.sh
-sudo ./scripts/install.sh
-```
+Voir [docs/ONEFORALL.md](docs/ONEFORALL.md). Les chemins, services, mots de passe et procédures de mise à jour diffèrent du mode autonome. Ne pas lancer les scripts autonomes sur une instance OneForAll.
 
-Le script effectue automatiquement :
+## OpenCascade
 
-1. Création de l’utilisateur système `cnctole`
-2. Installation de tous les paquets (Apache, PHP, MariaDB, Python, OpenCascade, etc.)
-3. Création de l’environnement virtuel Python et installation des packages ML
-4. Création de la base de données + import du schéma
-5. Configuration d’Apache (VirtualHost)
-6. Génération d’un modèle ML initial de démonstration
-7. Mise en place des permissions
-8. Installation du projet dans `/opt/cnctolequotation`
-
-**Durée estimée** : 5 à 15 minutes selon la connexion internet (les paquets sont téléchargés uniquement pendant l’installation).
-
-### 4. Vérifications post-installation
-
-```bash
-# Apache tourne ?
-systemctl status apache2
-
-# MariaDB tourne ?
-systemctl status mariadb
-
-# Test de l’API (depuis le serveur)
-curl -X POST http://localhost/api/v1/quote \
-  -H "Authorization: Bearer demo-token-change-me" \
-  -F "file=@/chemin/vers/une/piece.step" \
-  -F "material=AL6061" \
-  -F "quantity=1"
-```
-
-### 5. Accès à l’interface d’administration
-
-Depuis un navigateur :
-
-```
-http://<IP-du-serveur>/
-```
-
-Exemple : `http://192.168.1.50/`
-
-### 6. Sécurisation obligatoire (à faire immédiatement)
-
-#### 6.1 Changer le mot de passe MariaDB
-
-```bash
-sudo mysql
-```
-
-```sql
-ALTER USER 'cnctole'@'localhost' IDENTIFIED BY 'VOTRE_NOUVEAU_MOT_DE_PASSE_FORT';
-FLUSH PRIVILEGES;
-EXIT;
-```
-
-Puis éditez le fichier de configuration :
-
-```bash
-sudo nano /opt/cnctolequotation/api/config.php
-```
-
-Modifiez la ligne `'password' => '...'`.
-
-#### 6.2 Révoquer le token de démonstration
-
-```bash
-mysql -u cnctole -p cnctolequotation
-```
-
-```sql
-UPDATE api_tokens SET is_active = 0 WHERE name = 'Demo Token';
--- Créez un nouveau token (remplacez 'mon-super-token' par une valeur aléatoire longue)
-INSERT INTO api_tokens (name, token_hash, is_active)
-VALUES ('Production', SHA2('mon-super-token', 256), 1);
-EXIT;
-```
-
-#### 6.3 (Recommandé) Firewall
-
-```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 80/tcp
-sudo ufw enable
-```
-
-### 7. Utilisation de l’API
-
-```bash
-curl -X POST http://<IP>/api/v1/quote \
-  -H "Authorization: Bearer mon-super-token" \
-  -F "file=@piece.step" \
-  -F "material=AL6061" \
-  -F "quantity=5" \
-  -F "technology=cnc_milling"
-```
-
-### 8. Module Learning (réentraînement)
-
-1. Exportez les données validées :
-
-```bash
-sudo -u cnctole /opt/cnctolequotation/cli/export_history.sh > /tmp/export.csv
-sudo mv /tmp/export.csv /opt/cnctolequotation/data/history/export.csv
-sudo chown cnctole:cnctole /opt/cnctolequotation/data/history/export.csv
-```
-
-2. Réentraînez le modèle :
-
-```bash
-cd /opt/cnctolequotation
-sudo -u cnctole bash -c 'source venv/bin/activate && python3 core/learning/train.py --csv data/history/export.csv --version v1.0.0'
-```
-
-Le nouveau modèle devient automatiquement actif.
-
----
-
-## OpenCascade (analyse STEP réelle)
-
-Par défaut l’analyse géométrique est en mode *fallback*. Pour activer OpenCascade :
-
-```bash
-sudo ./scripts/install-occ.sh
-```
-
-Détails : [docs/INSTALL-OCC.md](docs/INSTALL-OCC.md)
+Le script autonome configure un Python Conda distinct, y compris `geometry_python`. Pour OneForAll, fournir l’exécutable OpenCascade avec le choix 16 du gestionnaire. Voir [INSTALL-OCC.md](docs/INSTALL-OCC.md).
 
 ## Structure du projet
 
