@@ -1,323 +1,116 @@
-#!/bin/bash
-#
-# CNCToleQuotation - Script d'installation
-# Ubuntu Server 24.04 LTS x64 - Mode offline après installation
-#
-# Usage : sudo ./scripts/install.sh
-#
-
+#!/usr/bin/env bash
+# Fresh standalone installation only; OneForAll has its own installer.
 set -euo pipefail
-
-# Couleurs
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-log()  { echo -e "${GREEN}[INFO]${NC} $*"; }
-warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
-err()  { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
-
-# Vérifications préalables
-[[ $EUID -eq 0 ]] || err "Ce script doit être exécuté en root (sudo)."
-[[ $(uname -m) == "x86_64" ]] || err "Architecture x86_64 requise."
-
-UBUNTU_VERSION=$(lsb_release -rs 2>/dev/null || echo "unknown")
-log "Détection Ubuntu : $UBUNTU_VERSION"
-
-# Répertoire d'installation
-INSTALL_DIR="/opt/cnctolequotation"
-APP_USER="cnctole"
-APP_GROUP="cnctole"
-
-log "=== Installation de CNCToleQuotation ==="
-
-# --------------------------------------------------
-# 1. Utilisateur système
-# --------------------------------------------------
-if ! id "$APP_USER" &>/dev/null; then
-    log "Création de l'utilisateur système $APP_USER..."
-    useradd --system --home-dir "$INSTALL_DIR" --shell /usr/sbin/nologin "$APP_USER"
-fi
-
-# --------------------------------------------------
-# 2. Paquets système
-# --------------------------------------------------
-log "Mise à jour des index apt (une seule fois)..."
-apt-get update -qq
-
-log "Installation des paquets système..."
-DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    apache2 \
-    libapache2-mod-php \
-    php \
-    php-cli \
-    php-mysql \
-    php-json \
-    php-mbstring \
-    php-xml \
-    php-curl \
-    php-zip \
-    php-gd \
-    mariadb-server \
-    mariadb-client \
-    python3 \
-    python3-pip \
-    python3-venv \
-    python3-dev \
-    build-essential \
-    cmake \
-    git \
-    curl \
-    wget \
-    unzip \
-    libocct-foundation-dev \
-    libocct-data-exchange-dev \
-    libocct-modeling-data-dev \
-    libocct-modeling-algorithms-dev \
-    libocct-ocaf-dev \
-    libocct-visualization-dev \
-    libocct-draw-dev \
-    occt-misc \
-    libboost-all-dev \
-    libfreetype6-dev \
-    libgl1-mesa-dev \
-    libx11-dev \
-    libxi-dev \
-    libxmu-dev \
-    libfontconfig1-dev \
-    > /dev/null
-
-log "Activation des modules Apache..."
-a2enmod rewrite headers php > /dev/null || true
-
-# --------------------------------------------------
-# 3. Répertoire d'installation
-# --------------------------------------------------
-log "Préparation du répertoire $INSTALL_DIR..."
-mkdir -p "$INSTALL_DIR"
-# On copie le code source depuis le répertoire courant (là où se trouve le script)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-rsync -a --exclude='.git' --exclude='tmp/*' --exclude='data/uploads/*' \
-    "$SCRIPT_DIR/" "$INSTALL_DIR/"
-
-chown -R "$APP_USER:$APP_GROUP" "$INSTALL_DIR"
-chmod -R 755 "$INSTALL_DIR"
-chmod -R 770 "$INSTALL_DIR/data" "$INSTALL_DIR/logs" "$INSTALL_DIR/tmp"
-
-# --------------------------------------------------
-# 4. Environnement Python (venv local)
-# --------------------------------------------------
-log "Création de l'environnement Python virtuel..."
+umask 027
+[[ $EUID -eq 0 ]] || { echo 'Exécuter avec sudo.' >&2; exit 1; }
+source /etc/os-release
+[[ $ID == ubuntu && ( $VERSION_ID == 24.04 || $VERSION_ID == 26.04 ) && $(uname -m) == x86_64 ]] || { echo 'Ubuntu 24.04/26.04 x86_64 requis.' >&2; exit 1; }
+INSTALL_DIR=/opt/cnctolequotation
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+[[ ! -e $INSTALL_DIR/api/config.php && ! -e /etc/apache2/sites-available/cnctolequotation.conf ]] || { echo 'Installation existante : sauvegarder et utiliser la procédure de mise à jour, sans réimporter le schéma.' >&2; exit 1; }
+read -r -s -p 'Mot de passe admin (12 caractères minimum) : ' ADMIN_PASSWORD; echo
+read -r -s -p 'Confirmer : ' ADMIN_CONFIRM; echo
+[[ ${#ADMIN_PASSWORD} -ge 12 && $ADMIN_PASSWORD == "$ADMIN_CONFIRM" ]] || { echo 'Mot de passe invalide.' >&2; exit 1; }
+unset ADMIN_CONFIRM
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends apache2 apache2-utils libapache2-mod-php php-cli php-mysql php-mbstring php-xml php-curl php-zip php-gd mariadb-server mariadb-client python3 python3-venv build-essential git curl ca-certificates rsync openssl libgomp1
+id cnctole >/dev/null 2>&1 || useradd --system --home-dir "$INSTALL_DIR" --shell /usr/sbin/nologin cnctole
+systemctl enable --now mariadb
+EXISTS=$(mariadb -Nse "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='cnctolequotation'")
+[[ $EXISTS == 0 ]] || { echo 'Base existante : import refusé pour conserver les données.' >&2; exit 1; }
+install -d -m 0755 "$INSTALL_DIR"
+rsync -a --exclude='.git' --exclude='venv' --exclude='.venv' --exclude='api/config.php' --exclude='data/uploads/*' --exclude='data/models/*' --exclude='data/history/*' --exclude='tmp/*' --exclude='logs/*' "$SCRIPT_DIR/" "$INSTALL_DIR/"
+install -d -m 2770 -o cnctole -g cnctole "$INSTALL_DIR/data" "$INSTALL_DIR/data/uploads" "$INSTALL_DIR/data/models" "$INSTALL_DIR/data/history" "$INSTALL_DIR/logs" "$INSTALL_DIR/tmp"
 python3 -m venv "$INSTALL_DIR/venv"
-source "$INSTALL_DIR/venv/bin/activate"
-
-log "Installation des packages Python (offline-ready)..."
-pip install --upgrade pip wheel setuptools > /dev/null
-
-# Packages Python nécessaires
-# Note : pythonocc-core s'installe via scripts/install-occ.sh (conda), pas via pip.
-# On installe d'abord les packages purs Python, puis on documente OCC.
-pip install \
-    numpy \
-    pandas \
-    scikit-learn \
-    lightgbm \
-    joblib \
-    scipy \
-    > /dev/null
-
-# pythonocc-core n'est pas sur PyPI : installer après coup avec scripts/install-occ.sh (conda)
-warn "OpenCascade non inclus ici. Pour une analyse STEP réelle, lancez ensuite :"
-warn "  sudo ./scripts/install-occ.sh"
-
-deactivate
-
-# --------------------------------------------------
-# 5. Base de données
-# --------------------------------------------------
-log "Configuration de MariaDB..."
-systemctl start mariadb
-systemctl enable mariadb > /dev/null
-
-# Sécurisation basique + création BDD
-mysql -u root <<EOF
-CREATE DATABASE IF NOT EXISTS cnctolequotation CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'cnctole'@'localhost' IDENTIFIED BY 'cnctole_change_me_2024';
-GRANT ALL PRIVILEGES ON cnctolequotation.* TO 'cnctole'@'localhost';
-FLUSH PRIVILEGES;
-EOF
-
-log "Import du schéma SQL..."
-mysql -u cnctole -pcnctole_change_me_2024 cnctolequotation < "$INSTALL_DIR/sql/schema.sql"
-
-# Fichier de configuration PHP pour la BDD
-cat > "$INSTALL_DIR/api/config.php" <<'PHPEOF'
+install -d -m 0700 /var/tmp/cnctolequotation-install
+TMPDIR=/var/tmp/cnctolequotation-install "$INSTALL_DIR/venv/bin/pip" install numpy pandas scikit-learn lightgbm joblib scipy
+DB_PASSWORD=$(openssl rand -hex 32)
+mariadb <<SQL
+CREATE DATABASE cnctolequotation CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'cnctole'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+ALTER USER 'cnctole'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
+GRANT ALL ON cnctolequotation.* TO 'cnctole'@'localhost';
+SQL
+# Initial schema contains a demo token: import it disabled, never usable.
+sed "s/SHA2('demo-token-change-me', 256), 1/SHA2('demo-token-change-me', 256), 0/" "$INSTALL_DIR/sql/schema.sql" | mariadb
+cat > "$INSTALL_DIR/api/config.php" <<PHP
 <?php
-/**
- * Configuration de l'application CNCToleQuotation
- * À adapter après installation
- */
 return [
-    'db' => [
-        'host'     => 'localhost',
-        'port'     => 3306,
-        'name'     => 'cnctolequotation',
-        'user'     => 'cnctole',
-        'password' => 'cnctole_change_me_2024',
-        'charset'  => 'utf8mb4',
-    ],
-    'paths' => [
-        'root'             => '/opt/cnctolequotation',
-        'uploads'          => '/opt/cnctolequotation/data/uploads',
-        'models'           => '/opt/cnctolequotation/data/models',
-        'logs'             => '/opt/cnctolequotation/logs',
-        'tmp'              => '/opt/cnctolequotation/tmp',
-        'geometry_python'  => '/opt/cnctolequotation/venv/bin/python3',
-        'python'           => '/opt/cnctolequotation/venv/bin/python3',
-        'geometry'         => '/opt/cnctolequotation/core/geometry/analyze.py',
-        'predict'          => '/opt/cnctolequotation/core/ml/predict.py',
-    ],
-    'security' => [
-        'max_upload_mb' => 50,
-        'allowed_ext'   => ['step', 'stp', 'iges', 'igs'],
-    ],
+ 'db'=>['host'=>'localhost','port'=>3306,'name'=>'cnctolequotation','user'=>'cnctole','password'=>'$DB_PASSWORD','charset'=>'utf8mb4'],
+ 'paths'=>['root'=>'$INSTALL_DIR','uploads'=>'$INSTALL_DIR/data/uploads','models'=>'$INSTALL_DIR/data/models','logs'=>'$INSTALL_DIR/logs','tmp'=>'$INSTALL_DIR/tmp','geometry_python'=>'$INSTALL_DIR/venv/bin/python','python'=>'$INSTALL_DIR/venv/bin/python','geometry'=>'$INSTALL_DIR/core/geometry/analyze.py','predict'=>'$INSTALL_DIR/core/ml/predict.py'],
+ 'security'=>['max_upload_mb'=>50,'allowed_ext'=>['step','stp','iges','igs']]
 ];
-PHPEOF
-
-chown "$APP_USER:$APP_GROUP" "$INSTALL_DIR/api/config.php"
-chmod 640 "$INSTALL_DIR/api/config.php"
-
-# --------------------------------------------------
-# 6. Configuration Apache
-# --------------------------------------------------
-log "Configuration d'Apache..."
-
-# Désactiver le site par défaut en premier
-a2dissite 000-default.conf 2>/dev/null || a2dissite 000-default 2>/dev/null || true
-
-cat > /etc/apache2/sites-available/cnctolequotation.conf <<'APACHEEOF'
+PHP
+unset DB_PASSWORD
+chown -R root:cnctole "$INSTALL_DIR"
+chmod -R g+rX,o-rwx "$INSTALL_DIR"
+chmod 0755 "$INSTALL_DIR"
+chown -R cnctole:cnctole "$INSTALL_DIR/data" "$INSTALL_DIR/logs" "$INSTALL_DIR/tmp"
+find "$INSTALL_DIR/data" "$INSTALL_DIR/logs" "$INSTALL_DIR/tmp" -type d -exec chmod 2770 {} +
+find "$INSTALL_DIR/data" "$INSTALL_DIR/logs" "$INSTALL_DIR/tmp" -type f -exec chmod 0660 {} +
+chmod 0640 "$INSTALL_DIR/api/config.php"
+usermod -aG cnctole www-data
+install -d -m 0750 -o root -g www-data /etc/cnctolequotation
+printf '%s\n' "$ADMIN_PASSWORD" | htpasswd -iBc /etc/cnctolequotation/admin.htpasswd admin
+unset ADMIN_PASSWORD
+chown root:www-data /etc/cnctolequotation/admin.htpasswd
+chmod 0640 /etc/cnctolequotation/admin.htpasswd
+runuser -u cnctole -- env CNCTOLE_MODELS_DIR="$INSTALL_DIR/data/models" "$INSTALL_DIR/venv/bin/python" "$INSTALL_DIR/core/ml/create_initial_model.py"
+printf 'v0.1.0\n' > "$INSTALL_DIR/data/models/active_model.txt"
+chown cnctole:cnctole "$INSTALL_DIR/data/models/active_model.txt"
+chmod 0660 "$INSTALL_DIR/data/models/active_model.txt"
+cat > /etc/apache2/sites-available/cnctolequotation.conf <<'APACHE'
 <VirtualHost *:80>
-    ServerAdmin admin@localhost
-    # Accepte aussi bien l'accès par IP que par nom
     ServerName cnctolequotation
-    ServerAlias *
-
     DocumentRoot /opt/cnctolequotation/web
-
+    SetEnv CNCTOLE_ALLOW_FALLBACK 0
+    SetEnv CNCTOLE_MODELS_DIR /opt/cnctolequotation/data/models
     <Directory /opt/cnctolequotation/web>
         Options -Indexes +FollowSymLinks
-        AllowOverride All
-        Require all granted
-        DirectoryIndex index.php index.html
+        AllowOverride None
+        DirectoryIndex index.php
+        AuthType Basic
+        AuthName "CNCToleQuotation administration"
+        AuthUserFile /etc/cnctolequotation/admin.htpasswd
+        Require valid-user
     </Directory>
-
-    # API
     Alias /api /opt/cnctolequotation/api
     <Directory /opt/cnctolequotation/api>
-        Options -Indexes +FollowSymLinks
-        AllowOverride All
+        Options -Indexes
+        AllowOverride None
         Require all granted
-        # Transmettre Authorization à PHP
         CGIPassAuth On
         SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+        RewriteEngine On
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteRule ^v1/quote$ v1/quote.php [L,QSA]
+        <Files "config.php">
+            Require all denied
+        </Files>
     </Directory>
-
-    # Sécurité : interdire l'accès direct aux dossiers sensibles
-    <DirectoryMatch "^/opt/cnctolequotation/(core|data|sql|scripts|cli|logs|tmp|venv)">
+    <DirectoryMatch "^/opt/cnctolequotation/(core|data|sql|scripts|cli|logs|tmp|venv|tests|docs|packaging)">
         Require all denied
     </DirectoryMatch>
-
-    ErrorLog ${APACHE_LOG_DIR}/cnctole_error.log
-    CustomLog ${APACHE_LOG_DIR}/cnctole_access.log combined
-
-    # PHP
     <IfModule mod_php.c>
         php_value upload_max_filesize 55M
         php_value post_max_size 60M
-        php_value max_execution_time 180
+        php_value max_execution_time 300
         php_value memory_limit 512M
     </IfModule>
+    ErrorLog ${APACHE_LOG_DIR}/cnctole_error.log
+    CustomLog ${APACHE_LOG_DIR}/cnctole_access.log combined
 </VirtualHost>
-APACHEEOF
-
-# S'assurer que le module rewrite est activé
-a2enmod rewrite headers 2>/dev/null || true
-
-a2ensite cnctolequotation.conf 2>/dev/null || a2ensite cnctolequotation 2>/dev/null || true
-
-# Vérification de la configuration avant rechargement
-if apache2ctl configtest 2>&1 | grep -q "Syntax OK"; then
-    systemctl reload apache2
-    log "Apache rechargé avec succès."
-else
-    warn "Problème de configuration Apache. Vérifiez avec : apache2ctl configtest"
-    systemctl reload apache2 || true
-fi
-
-# --------------------------------------------------
-# 7. Modèle ML initial (basique)
-# --------------------------------------------------
-log "Préparation du répertoire des modèles ML..."
-mkdir -p "$INSTALL_DIR/data/models"
-chown -R "$APP_USER:$APP_GROUP" "$INSTALL_DIR/data"
-chmod -R 770 "$INSTALL_DIR/data"
-
-log "Génération d'un modèle ML initial de démonstration..."
-# Exécuter en tant que l'utilisateur applicatif pour les bons droits de fichiers
-if sudo -u "$APP_USER" bash -c "
-    source '$INSTALL_DIR/venv/bin/activate'
-    python3 '$INSTALL_DIR/core/ml/create_initial_model.py'
-"; then
-    # Activer explicitement le modèle
-    echo "v0.1.0" > "$INSTALL_DIR/data/models/active_model.txt"
-    chown "$APP_USER:$APP_GROUP" "$INSTALL_DIR/data/models/active_model.txt"
-    chmod 640 "$INSTALL_DIR/data/models/active_model.txt"
-    log "Modèle ML v0.1.0 créé et activé."
-else
-    warn "Échec de la génération du modèle initial."
-    warn "Vous pourrez le créer plus tard avec :"
-    warn "  sudo -u $APP_USER bash -c 'source $INSTALL_DIR/venv/bin/activate && python3 $INSTALL_DIR/core/ml/create_initial_model.py'"
-    warn "  echo v0.1.0 | sudo tee $INSTALL_DIR/data/models/active_model.txt"
-fi
-
-# --------------------------------------------------
-# 8. Permissions finales
-# --------------------------------------------------
-# Apache (www-data) doit pouvoir lire les modèles et la config pour l'interface admin
-usermod -aG "$APP_GROUP" www-data 2>/dev/null || true
-
-chown -R "$APP_USER:$APP_GROUP" "$INSTALL_DIR"
-chmod -R 755 "$INSTALL_DIR"
-
-# data/uploads, logs, tmp : écriture réservée à cnctole
-chmod -R 770 "$INSTALL_DIR/data/uploads" "$INSTALL_DIR/logs" "$INSTALL_DIR/tmp"
-
-# data/models : lecture pour le groupe (www-data y est ajouté)
-chmod -R 750 "$INSTALL_DIR/data/models" 2>/dev/null || true
-chmod -R 750 "$INSTALL_DIR/data/history" 2>/dev/null || true
-
-# config.php : lecture pour le groupe (Apache doit le lire)
-chmod 640 "$INSTALL_DIR/api/config.php"
-
-# --------------------------------------------------
-# Fin
-# --------------------------------------------------
-log "========================================================"
-log " Installation terminée avec succès !"
-log "========================================================"
-log ""
-log " Répertoire          : $INSTALL_DIR"
-log " Interface web       : http://<IP-du-serveur>/"
-log " API                 : http://<IP-du-serveur>/api/v1/quote"
-log " Utilisateur BDD     : cnctole"
-log " Mot de passe BDD    : cnctole_change_me_2024  (À CHANGER !)"
-log " Token démo API      : demo-token-change-me"
-log " Modèle ML           : v0.1.0 (si génération réussie)"
-log ""
-log " Prochaines étapes :"
-log "  1. Changer le mot de passe MariaDB"
-log "  2. Générer un vrai token API via l'interface admin"
-log "  3. Installer OpenCascade : sudo ./scripts/install-occ.sh"
-log "  4. Importer votre historique de commandes dans le module Learning"
-log "========================================================"
+APACHE
+a2enmod rewrite headers env auth_basic authn_file
+# Dedicated fresh server: disable only the stock default site.
+a2dissite 000-default.conf >/dev/null 2>&1 || true
+a2ensite cnctolequotation.conf
+apache2ctl configtest
+systemctl enable apache2
+systemctl restart apache2
+CODE=$(curl --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' http://127.0.0.1/)
+[[ $CODE == 401 ]] || { echo "Contrôle admin attendu 401, reçu $CODE" >&2; exit 1; }
+echo 'Socle installé. Administration : http://IP_LAN/ ; identifiant admin.'
+echo 'Installer OpenCascade avec scripts/install-occ.sh avant toute cotation réelle.'
+echo 'Le modèle ML initial est un modèle de démonstration à calibrer ; aucun token API actif par défaut.'
+echo 'Configurer HTTPS ou un tunnel avant un accès depuis un réseau non fiable.'
