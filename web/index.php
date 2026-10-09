@@ -55,7 +55,7 @@
                 </div>
                 <div class="form-row">
                     <label>Token API</label>
-                    <input type="text" name="token" value="demo-token-change-me" required>
+                    <input type="text" name="token" placeholder="Votre token API" required>
                 </div>
                 <button type="submit">Lancer la cotation</button>
             </form>
@@ -70,3 +70,4 @@
     <script src="assets/js/admin.js"></script>
 </body>
 </html>
+

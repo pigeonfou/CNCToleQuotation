@@ -16,7 +16,7 @@ import joblib
 
 # Chemins
 ROOT = Path(__file__).resolve().parents[2]
-MODELS_DIR = ROOT / "data" / "models"
+MODELS_DIR = Path(os.environ.get("CNCTOLE_MODELS_DIR", str(ROOT / "data" / "models")))
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 def generate_synthetic_data(n=200):
@@ -157,3 +157,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+

@@ -22,7 +22,7 @@
 
     <main>
         <?php
-        $configFile = '/opt/cnctolequotation/api/config.php';
+        $configFile = (getenv('CNCTOLE_CONFIG') ?: dirname(__DIR__, 2) . '/api/config.php');
         $message = '';
 
         if (!file_exists($configFile)) {
@@ -115,3 +115,4 @@
     </footer>
 </body>
 </html>
+

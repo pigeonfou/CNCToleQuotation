@@ -24,7 +24,7 @@
         <section class="card">
             <h2>Tokens existants</h2>
             <?php
-            $configFile = '/opt/cnctolequotation/api/config.php';
+            $configFile = (getenv('CNCTOLE_CONFIG') ?: dirname(__DIR__, 2) . '/api/config.php');
             $message = '';
 
             if (!file_exists($configFile)) {
@@ -132,3 +132,4 @@
     </footer>
 </body>
 </html>
+

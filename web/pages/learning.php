@@ -24,7 +24,7 @@
         <section class="card">
             <h2>Modèles ML disponibles</h2>
             <?php
-            $modelsDir = '/opt/cnctolequotation/data/models';
+            $modelsDir = (getenv('CNCTOLE_MODELS_DIR') ?: '/opt/cnctolequotation/data/models');
             $activeFile = $modelsDir . '/active_model.txt';
 
             if (!is_dir($modelsDir) || !is_readable($modelsDir)) {
@@ -80,7 +80,7 @@ sudo -u cnctole bash -c 'source venv/bin/activate && python3 core/learning/train
         <section class="card">
             <h2>Historique d’apprentissage (BDD)</h2>
             <?php
-            $configFile = '/opt/cnctolequotation/api/config.php';
+            $configFile = (getenv('CNCTOLE_CONFIG') ?: dirname(__DIR__, 2) . '/api/config.php');
             if (file_exists($configFile)) {
                 $config = require $configFile;
                 try {
@@ -111,3 +111,4 @@ sudo -u cnctole bash -c 'source venv/bin/activate && python3 core/learning/train
     </footer>
 </body>
 </html>
+

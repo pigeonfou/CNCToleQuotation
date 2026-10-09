@@ -25,7 +25,7 @@
             <h2>Dernières cotations</h2>
             <div class="table-wrapper">
                 <?php
-                $configFile = '/opt/cnctolequotation/api/config.php';
+                $configFile = (getenv('CNCTOLE_CONFIG') ?: dirname(__DIR__, 2) . '/api/config.php');
                 if (!file_exists($configFile)) {
                     echo '<p class="error">Fichier de configuration introuvable.</p>';
                 } else {
@@ -98,3 +98,4 @@
     </footer>
 </body>
 </html>
+

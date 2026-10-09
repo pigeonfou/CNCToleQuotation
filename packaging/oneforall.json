@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "id": "cnctolequotation",
+  "integration": "native-isolated",
+  "frontend": "nginx",
+  "hostname": "cnctolequotation.pigeonfou.com"
+}
